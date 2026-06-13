@@ -19,6 +19,19 @@ from plotly.subplots import make_subplots
 
 from dqn import DQNAgent
 
+
+@functools.lru_cache(maxsize=1)
+def _dog_data_uri():
+    """Return the mascot image as a base64 data URI. Returns '' if assets/dog.png
+    is missing, so callers can fall back gracefully (e.g. to an emoji)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "dog.png")
+    try:
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        return f"data:image/png;base64,{b64}"
+    except OSError:
+        return ""
+
 # ── page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="LunarLander DQN",
@@ -81,7 +94,15 @@ _init_state()
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🚀 LunarLander DQN")
+    _dog = _dog_data_uri()
+    if _dog:
+        st.markdown(
+            f'<h1><img src="{_dog}" style="height:2em;width:2em;'
+            f'vertical-align:-0.5em;border-radius:6px;margin-right:0.35em">'
+            f'LunarLander DQN</h1>',
+            unsafe_allow_html=True)
+    else:
+        st.title("🚀 LunarLander DQN")
 
     with st.expander("🎯 Training run", expanded=True):
         total_episodes = st.slider("Episodes", 100, 10000, 600, 100)
@@ -516,29 +537,11 @@ def _make_play_fig(obs, traj, p_done, last_action):
     return fig
 
 
-@functools.lru_cache(maxsize=1)
-def _dog_data_uri():
-    """Return the mascot image as a base64 data URI (sandboxed iframes can't load
-    files by path). Returns '' if assets/dog.png is missing, so the icon is simply
-    omitted rather than breaking the button."""
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "dog.png")
-    try:
-        with open(path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        return f"data:image/png;base64,{b64}"
-    except OSError:
-        return ""
-
-
 def _make_game_html(game_id, gravity, main_power, side_power,
                     enable_wind, wind_power, turb_power,
                     pad_width=2.0, max_land_speed=0.09, max_land_angle=13):
     W, H = 920, 700
     wind_js   = "true" if enable_wind else "false"
-    _dog_uri  = _dog_data_uri()
-    dog_icon  = (f'<img src="{_dog_uri}" alt="" '
-                 f'style="height:18px;width:18px;vertical-align:middle;'
-                 f'margin-right:7px;border-radius:3px">' if _dog_uri else "")
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -560,7 +563,7 @@ def _make_game_html(game_id, gravity, main_power, side_power,
 </head>
 <body>
 <div id="bar">
-  <button id="btnStart" onclick="togglePause()">{dog_icon}<span id="btnLabel">&#9654; Start</span></button>
+  <button id="btnStart" onclick="togglePause()"><span id="btnLabel">&#9654; Start</span></button>
   <button onclick="giveUp()">&#128128; Give Up</button>
   <span id="clock">00:00</span>
   <span id="scorespan">step 0 &nbsp;|&nbsp; reward +0.0</span>
