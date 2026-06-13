@@ -2,7 +2,10 @@
 LunarLander DQN — Streamlit web UI
 Train a DQN agent on LunarLander-v3 and watch it play, or fly it yourself.
 """
+import os
 import time
+import base64
+import functools
 import threading
 import queue
 
@@ -513,11 +516,29 @@ def _make_play_fig(obs, traj, p_done, last_action):
     return fig
 
 
+@functools.lru_cache(maxsize=1)
+def _dog_data_uri():
+    """Return the mascot image as a base64 data URI (sandboxed iframes can't load
+    files by path). Returns '' if assets/dog.png is missing, so the icon is simply
+    omitted rather than breaking the button."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "dog.png")
+    try:
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        return f"data:image/png;base64,{b64}"
+    except OSError:
+        return ""
+
+
 def _make_game_html(game_id, gravity, main_power, side_power,
                     enable_wind, wind_power, turb_power,
                     pad_width=2.0, max_land_speed=0.09, max_land_angle=13):
     W, H = 920, 700
     wind_js   = "true" if enable_wind else "false"
+    _dog_uri  = _dog_data_uri()
+    dog_icon  = (f'<img src="{_dog_uri}" alt="" '
+                 f'style="height:18px;width:18px;vertical-align:middle;'
+                 f'margin-right:7px;border-radius:3px">' if _dog_uri else "")
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -539,7 +560,7 @@ def _make_game_html(game_id, gravity, main_power, side_power,
 </head>
 <body>
 <div id="bar">
-  <button id="btnStart" onclick="togglePause()">&#9654; Start</button>
+  <button id="btnStart" onclick="togglePause()">{dog_icon}<span id="btnLabel">&#9654; Start</span></button>
   <button onclick="giveUp()">&#128128; Give Up</button>
   <span id="clock">00:00</span>
   <span id="scorespan">step 0 &nbsp;|&nbsp; reward +0.0</span>
@@ -620,7 +641,7 @@ function togglePause(){{
   if(gameOver)return;
   paused=!paused;
   if(!paused&&!startT)startT=performance.now();
-  document.getElementById('btnStart').textContent=paused?'&#9654; Start':'&#9646;&#9646; Pause';
+  document.getElementById('btnLabel').textContent=paused?'▶ Start':'❚❚ Pause';
 }}
 function giveUp(){{gameOver='crashed';crashReasons=['Mission aborted (Give Up)'];paused=false;totalReward-=50;}}
 
@@ -1553,6 +1574,43 @@ The DQN agent receives an 8-dimensional vector every step from the environment:
 <div class="cond-row note-row">
   <span class="cond-icon">🎮</span>
   <span class="cond-text"><b>Actions:</b> 0 = do nothing &nbsp;|&nbsp; 1 = left thruster &nbsp;|&nbsp; 2 = main engine &nbsp;|&nbsp; 3 = right thruster</span>
+</div>
+</div>
+
+<div class="info-card">
+<h3>🎲 Initial state (how each episode starts)</h3>
+
+The starting state is <b>not fixed</b> — it is randomised by the environment on every
+episode reset, and training runs are unseeded (so each full run differs too). Three things
+vary from episode to episode:
+
+<div class="cond-row note-row">
+  <span class="cond-icon">📍</span>
+  <span class="cond-text"><b>Starting position</b> — the lander always spawns near the
+  top-centre of the screen, with the exact x slightly jittered.</span>
+</div>
+<div class="cond-row note-row">
+  <span class="cond-icon">💥</span>
+  <span class="cond-text"><b>Initial velocity</b> — on reset a <b>random force</b> is applied to
+  the lander's centre of mass, so it always begins already drifting in a random direction at a
+  random speed. It is never handed to the agent motionless — this is the largest source of
+  episode-to-episode variation.</span>
+</div>
+<div class="cond-row note-row">
+  <span class="cond-icon">⛰️</span>
+  <span class="cond-text"><b>Terrain</b> — the jagged moon surface on either side is regenerated
+  each episode. The landing pad stays fixed at the centre, but the surrounding hills change.</span>
+</div>
+
+What stays constant: the pad location, gravity, and every physics parameter you set in the sidebar.
+
+<div class="cond-row note-row">
+  <span class="cond-icon">🎯</span>
+  <span class="cond-text"><b>Why randomise?</b> It forces the agent to learn a <i>general</i>
+  landing policy that works from any starting drift and over any terrain, rather than memorising one
+  trajectory. It is also why single-episode rewards stay noisy even late in training (a bad initial
+  impulse is simply harder to recover from) — so the smoothed/averaged reward curve, not any one
+  episode, is the signal to watch.</span>
 </div>
 </div>
 
