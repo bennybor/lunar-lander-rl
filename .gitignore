@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Secrets — never commit these
+.streamlit/secrets.toml
+.claude/settings.local.json
+
+# Generated output, models & logs
+*.log
+*.zip
+*.pkl
+*.pth
+monitor.csv
+results/
+
+# Editor config
+.vscode/
