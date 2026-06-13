@@ -146,6 +146,17 @@ with st.sidebar:
         train_freq    = st.select_slider("Train every N steps", [1, 2, 4, 8], value=4,
                                          help="Run a gradient update once per N environment steps. "
                                               "4 is standard DQN practice and ~3-4× faster than 1.")
+        st.markdown("**🎲 Replay sampling**")
+        use_per = st.toggle("Prioritized replay (PER)", value=False,
+                            help="Sample transitions with high TD-error more often, instead of "
+                                 "uniformly. Helps most when rewards are sparse; adds some overhead.")
+        per_alpha = st.slider("PER α (prioritization)", 0.0, 1.0, 0.6, 0.05,
+                              disabled=not use_per,
+                              help="0 = uniform sampling, 1 = fully proportional to TD-error.")
+        per_beta_start = st.slider("PER β start (IS correction)", 0.0, 1.0, 0.4, 0.05,
+                                   disabled=not use_per,
+                                   help="Importance-sampling correction strength; annealed to 1.0 "
+                                        "by the end of training.")
 
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -197,6 +208,9 @@ def _train_loop(cfg: dict, log_q: queue.Queue):
         eps_start=cfg["eps_start"], eps_end=cfg["eps_end"], eps_decay=cfg["eps_decay"],
         buffer_size=cfg["buffer_size"], batch_size=cfg["batch_size"],
         target_update_freq=cfg["target_update"], hidden=cfg["hidden"],
+        use_per=cfg["use_per"], per_alpha=cfg["per_alpha"],
+        per_beta_start=cfg["per_beta_start"],
+        per_beta_frames=cfg["total_episodes"] * cfg["max_steps"],
     )
     log_q.put(("agent", agent))
     top_rewards = []   # rewards of the episodes sent as replays (keep top 10)
@@ -289,6 +303,7 @@ if start_btn:
         eps_decay=eps_decay, buffer_size=buffer_size, batch_size=batch_size,
         target_update=target_update, hidden=hidden,
         total_episodes=total_episodes, max_steps=max_steps, train_freq=train_freq,
+        use_per=use_per, per_alpha=per_alpha, per_beta_start=per_beta_start,
         gravity=gravity, enable_wind=enable_wind,
         wind_power=wind_power, turbulence_power=turbulence_power,
         main_engine_power=main_engine_power, side_engine_power=side_engine_power,
