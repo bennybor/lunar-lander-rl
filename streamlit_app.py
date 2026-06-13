@@ -617,7 +617,7 @@ function initGame(){{
   lander={{x:rx,y:2.5+ry,vx:(RNG()-.5)*.02,vy:-.003,angle:(RNG()-.5)*.05,omega:0,legL:false,legR:false}};
   trail=[]; activeAction=0; burstTimer=0; paused=true; gameOver=null; crashReasons=[];
   startT=null; elapsed=0; totalReward=0; steps=0; windIdx=RNG()*1000;
-  document.getElementById('btnStart').textContent='&#9654; Start';
+  document.getElementById('btnLabel').textContent='▶ Start';
 }}
 initGame();
 
